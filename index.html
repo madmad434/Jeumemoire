@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jeu de Mémoire</title>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --config-bg:    #f0f2f5;
+    --config-border:#d1d9e6;
+    --config-text:  #2d3748;
+    --config-muted: #718096;
+    --input-bg:     #ffffff;
+    --input-border: #c7d0e0;
+    --game-bg:      #f7f9fc;
+    --side-bg:      #ffffff;
+    --side-border:  #e2e8f0;
+    --stats-bg:     #e8ecf4;
+    --stats-border: #d1d9e6;
+    --accent:       #3b82f6;
+    --accent-light: #dbeafe;
+    --accent-dark:  #1d4ed8;
+    --green:        #10b981;
+    --green-light:  #d1fae5;
+    --green-dark:   #065f46;
+    --red:          #ef4444;
+    --red-light:    #fee2e2;
+    --yellow:       #f59e0b;
+    --yellow-light: #fef3c7;
+    --purple:       #8b5cf6;
+    --card-back:    #1e3a7a;
+    --card-back2:   #152d62;
+    --card-front:   #ffffff;
+    --text:         #1e293b;
+    --text-muted:   #64748b;
+    --radius:       12px;
+    --radius-sm:    8px;
+    --t:            0.18s ease;
+  }
+
+  html, body { width:100%; height:100%; overflow:hidden; background:var(--game-bg); color:var(--text); font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif; user-select:none; }
+
+  #app { display:grid; grid-template-rows:auto auto auto 1fr; height:100vh; overflow:hidden; }
+
+  /* ── CONFIG (gris clair) ── */
+  #configpanel {
+    background:var(--config-bg);
+    border-bottom:1px solid var(--config-border);
+    padding:10px 16px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex-shrink:0;
+    box-shadow:0 1px 4px #00000010;
+  }
+  .game-title { font-size:1.2rem; font-weight:900; color:var(--accent-dark); letter-spacing:2px; text-transform:uppercase; white-space:nowrap; font-family:'Courier New',Courier,monospace; margin-right:4px; }
+  .separator  { width:1px; height:28px; background:var(--config-border); flex-shrink:0; }
+  .cfg-group  { display:flex; align-items:center; gap:6px; }
+  .cfg-label  { font-size:.72rem; font-weight:800; color:var(--config-muted); text-transform:uppercase; letter-spacing:.8px; white-space:nowrap; }
+
+  select, input[type=number] {
+    height:34px; background:var(--input-bg); border:1px solid var(--input-border); border-radius:var(--radius-sm);
+    color:var(--config-text); font-size:.85rem; font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif; font-weight:700; cursor:pointer;
+    outline:none; transition:border-color var(--t),box-shadow var(--t);
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 8px center; background-color:var(--input-bg);
+    padding:0 26px 0 8px; box-shadow:0 1px 3px #0000000a;
+  }
+  select:hover,input[type=number]:hover { border-color:var(--accent); }
+  select:focus,input[type=number]:focus { border-color:var(--accent); box-shadow:0 0 0 3px #3b82f630; }
+  select.dim-select { width:62px; }
+  select#sel-theme  { min-width:155px; }
+  select#sel-click  { min-width:135px; }
+
+  .range-wrap { display:flex; align-items:center; gap:6px; }
+  input[type=range] {
+    -webkit-appearance:none; width:90px; height:4px; border-radius:2px;
+    background:var(--config-border); outline:none; cursor:pointer;
+    box-shadow:none; background-image:none; padding:0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--accent); border:2px solid #fff; cursor:pointer; box-shadow:0 1px 4px #3b82f640;
+  }
+  #tv-val { font-family:'Courier New',Courier,monospace; font-size:.78rem; color:var(--accent-dark); min-width:26px; font-weight:700; }
+
+  .btn {
+    display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 14px;
+    border-radius:var(--radius-sm); border:1px solid var(--input-border);
+    background:var(--input-bg); color:var(--config-text);
+    font-size:.82rem; font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif; font-weight:700;
+    cursor:pointer; transition:all var(--t); white-space:nowrap; box-shadow:0 1px 3px #0000000a;
+  }
+  .btn:hover { border-color:var(--accent); background:var(--accent-light); color:var(--accent-dark); }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-size:.88rem; padding:0 18px; box-shadow:0 2px 8px #3b82f640; }
+  .btn.primary:hover { background:var(--accent-dark); box-shadow:0 3px 12px #3b82f660; }
+  .btn.danger { background:var(--red-light); border-color:#fca5a5; color:#b91c1c; }
+  .btn.danger:hover { background:#fecaca; border-color:var(--red); }
+  .btn.btn-solution { background:#f3e8ff; border-color:#c4b5fd; color:#6d28d9; }
+  .btn.btn-solution:hover { background:#ede9fe; border-color:var(--purple); }
+  .btn.btn-solution.active { background:#ddd6fe; border-color:var(--purple); }
+  #btn-quit { margin-left:auto; }
+
+  /* ── VALIDATION ── */
+  #val-msg { font-size:.75rem; color:#b91c1c; padding:4px 16px; font-weight:700; background:var(--red-light); border-bottom:1px solid #fca5a5; display:none; }
+  #val-msg.visible { display:block; }
+
+  /* ── STATS BAR ── */
+  #statsbar { display:flex; align-items:stretch; background:var(--stats-bg); border-bottom:1px solid var(--stats-border); flex-shrink:0; }
+  .stat-block { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4px 20px; flex:1; border-right:1px solid var(--stats-border); transition:background var(--t); cursor:default; gap:0; }
+  .stat-block:last-child { border-right:none; }
+  .stat-block:hover { background:#dde3f0; }
+  .stat-label { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-muted); }
+  .stat-value { font-family:'Courier New',Courier,monospace; font-size:1rem; font-weight:700; color:var(--text); line-height:1.1; }
+  .stat-value.c-accent { color:var(--accent-dark); }
+  .stat-value.c-green  { color:#059669; }
+  .stat-value.c-yellow { color:#b45309; }
+  .stat-value.c-purple { color:#6d28d9; }
+
+  /* ── AIDE ── */
+  #aide-bar {
+    display:flex; align-items:center; gap:14px; padding:5px 16px;
+    background:var(--accent-light); border-bottom:1px solid #bfdbfe;
+    font-size:.82rem; color:#1e40af; flex-wrap:wrap; flex-shrink:0;
+  }
+  .aide-item { display:flex; align-items:center; gap:4px; }
+  .aide-kbd { background:#fff; border:1px solid #93c5fd; border-radius:4px; padding:0 5px; font-family:'Courier New',Courier,monospace; font-size:.68rem; font-weight:700; color:var(--accent-dark); }
+  #btn-aide-close { margin-left:auto; cursor:pointer; opacity:.5; font-size:.8rem; background:none; border:none; color:#1e40af; padding:0 4px; font-weight:700; }
+  #btn-aide-close:hover { opacity:1; }
+
+  /* ── MAIN ── */
+  #main { display:flex; flex:1; overflow:hidden; min-height:0; }
+
+  /* ── SIDE PANEL (blanc) ── */
+  #sidepanel { width:185px; min-width:160px; background:var(--side-bg); border-right:1px solid var(--side-border); display:flex; flex-direction:column; padding:14px 12px; overflow-y:auto; flex-shrink:0; gap:16px; box-shadow:2px 0 8px #00000008; }
+  .side-section-title { font-size:.63rem; font-weight:900; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.5px; padding-bottom:6px; border-bottom:2px solid var(--side-border); }
+
+  #progress-wrap { display:flex; flex-direction:column; gap:6px; }
+  .progress-bar-track { width:100%; height:14px; background:#e2e8f0; border-radius:7px; overflow:hidden; }
+  .progress-bar-fill  { height:100%; background:linear-gradient(90deg,var(--green),#34d399); border-radius:7px; width:0%; transition:width .4s ease; box-shadow:0 1px 4px #10b98140; }
+  .progress-bar-label { display:flex; justify-content:space-between; align-items:baseline; }
+  .prog-pct  { font-family:'Courier New',Courier,monospace; font-size:1rem; font-weight:700; color:#059669; }
+  .pairs-text { font-size:.72rem; color:var(--text-muted); font-weight:700; }
+  .pairs-text span { color:#059669; font-weight:900; }
+
+  #found-list { display:flex; flex-wrap:wrap; gap:5px; min-height:28px; }
+  .found-icon { width:34px; height:34px; display:flex; align-items:center; justify-content:center; background:var(--green-light); border:1px solid #6ee7b7; border-radius:var(--radius-sm); font-size:1.2rem; animation:popIn .3s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes popIn { from{transform:scale(0) rotate(-10deg);opacity:0} to{transform:scale(1) rotate(0deg);opacity:1} }
+
+  .side-counter { display:flex; align-items:center; justify-content:space-between; background:#f3e8ff; border:1px solid #c4b5fd; border-radius:var(--radius-sm); padding:6px 10px; }
+  .side-counter .sc-label { font-size:.74rem; color:#6d28d9; font-weight:700; }
+  .side-counter .sc-val   { font-family:'Courier New',Courier,monospace; color:#6d28d9; font-weight:700; font-size:.9rem; }
+
+  /* ── GRID AREA (fond clair) ── */
+  #grid-area { flex:1; display:flex; align-items:center; justify-content:center; padding:16px; overflow:hidden; min-width:0; background:var(--game-bg); }
+  #grid { display:grid; gap:8px; }
+
+  /* ── CARDS ── */
+  .card { position:relative; cursor:pointer; perspective:700px; border-radius:var(--radius); }
+  .card-inner { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform .42s cubic-bezier(.4,0,.2,1); border-radius:var(--radius); }
+  .card.flipped .card-inner, .card.peeking .card-inner { transform:rotateY(180deg); }
+
+  .card-face { position:absolute; inset:0; border-radius:var(--radius); display:flex; align-items:center; justify-content:center; backface-visibility:hidden; -webkit-backface-visibility:hidden; border:2px solid transparent; transition:border-color var(--t),box-shadow var(--t); }
+
+  .card-back-face { background:linear-gradient(145deg,var(--card-back) 0%,var(--card-back2) 100%); font-size:1.4em; border-color:#2a4e9e; box-shadow:0 2px 8px #1e3a7a40,inset 0 1px 0 #ffffff20; }
+  .card-back-face .q { color:#e8001a; text-shadow:0 0 8px #ff003380,0 1px 0 #990011; filter:drop-shadow(0 0 4px #ff2244aa); }
+  .card-back-face::after { content:''; position:absolute; inset:5px; border-radius:8px; border:1px solid rgba(255,255,255,.35); pointer-events:none; }
+  .card:hover:not(.found):not(.flipped) .card-back-face { border-color:var(--accent); box-shadow:0 4px 16px #3b82f640,0 0 0 3px #3b82f620; }
+
+  .card-front-face { background:var(--card-front); transform:rotateY(180deg); border-color:var(--accent); font-size:1.5em; line-height:1; box-shadow:0 2px 12px #3b82f630; }
+  .card.found .card-face      { border-color:var(--green)!important; }
+  .card.found .card-front-face{ background:#f0fdf4; box-shadow:0 2px 10px #10b98130; }
+
+  .card-label { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; line-height:1; }
+  .card-label .card-num { font-size:1em; font-weight:900; color:#1e293b; }
+  .card-label .card-sym { font-size:.75em; }
+
+  .timer-bar { position:absolute; bottom:0; left:0; height:3px; background:linear-gradient(90deg,var(--accent),var(--purple)); border-radius:0 0 var(--radius) var(--radius); transition:width linear; z-index:2; }
+
+  /* ── OVERLAY ── */
+  #overlay { display:none; position:fixed; inset:0; background:#00000070; backdrop-filter:blur(8px); z-index:100; align-items:center; justify-content:center; flex-direction:column; }
+  #overlay.show { display:flex; }
+
+  .overlay-card { background:#fff; border:1px solid var(--side-border); border-radius:20px; padding:36px 44px; display:flex; flex-direction:column; align-items:center; gap:18px; box-shadow:0 30px 80px #00000030; animation:slideUp .4s cubic-bezier(.34,1.56,.64,1); min-width:320px; max-width:90vw; }
+  @keyframes slideUp { from{transform:translateY(30px) scale(.95);opacity:0} to{transform:translateY(0) scale(1);opacity:1} }
+  .overlay-card h2 { font-size:2rem; font-weight:900; color:var(--green-dark); }
+
+  .overlay-stats { display:flex; gap:24px; background:var(--stats-bg); border-radius:var(--radius); padding:14px 20px; width:100%; justify-content:center; }
+  .ov-stat { display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .ov-stat-val { font-family:'Courier New',Courier,monospace; font-size:1.5rem; font-weight:700; color:var(--accent-dark); }
+  .ov-stat-lbl { font-size:.65rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); }
+
+  .overlay-buttons { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+
+  /* Grille résolue */
+  #solved-grid-wrap { display:none; flex-direction:column; align-items:center; gap:8px; width:100%; max-height:40vh; overflow-y:auto; }
+  #solved-grid-wrap.visible { display:flex; }
+  #solved-grid-title { font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); }
+  #solved-grid { display:grid; gap:3px; background:var(--game-bg); border:1px solid var(--side-border); border-radius:var(--radius); padding:8px; }
+  .s-card { width:34px; height:34px; display:flex; align-items:center; justify-content:center; background:#f0fdf4; border:1.5px solid var(--green); border-radius:6px; font-size:.9rem; line-height:1; }
+  .s-card .card-label .card-num { font-size:.72em; }
+  .s-card .card-label .card-sym { font-size:.52em; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--config-border); border-radius:3px; }
+
+  @media (max-width:600px) {
+    #sidepanel { width:120px; min-width:100px; }
+    .stat-block { padding:5px 8px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- CONFIG (gris clair) -->
+  <div id="configpanel">
+    <span class="game-title">🃏 Mémoire</span>
+    <div class="separator"></div>
+    <div class="cfg-group">
+      <span class="cfg-label">Lignes</span>
+      <select id="inp-rows" class="dim-select">
+        <option value="2">2</option><option value="3">3</option><option value="4" selected>4</option>
+        <option value="5">5</option><option value="6">6</option><option value="7">7</option>
+        <option value="8">8</option><option value="9">9</option><option value="10">10</option>
+      </select>
+    </div>
+    <div class="cfg-group">
+      <span class="cfg-label">Cols</span>
+      <select id="inp-cols" class="dim-select">
+        <option value="2">2</option><option value="3">3</option><option value="4" selected>4</option>
+        <option value="5">5</option><option value="6">6</option><option value="7">7</option>
+        <option value="8">8</option><option value="9">9</option><option value="10">10</option>
+      </select>
+    </div>
+    <div class="separator"></div>
+    <div class="cfg-group">
+      <span class="cfg-label">Thème</span>
+      <select id="sel-theme">
+        <option value="cards">Cartes ♠♥</option>
+        <option value="animals">Animaux 🐶</option>
+        <option value="food">Alimentation 🍎</option>
+        <option value="letters">Lettres A–Z</option>
+        <option value="smileys">Smileys 😀</option>
+        <option value="mix">Mélange 🎲</option>
+      </select>
+    </div>
+    <div class="separator"></div>
+    <div class="cfg-group">
+      <span class="cfg-label">Délai retournement</span>
+      <div class="range-wrap">
+        <input type="range" id="sl-tv" min="1" max="10" value="3">
+        <span id="tv-val">3s</span>
+      </div>
+    </div>
+    <div class="separator"></div>
+    <div class="cfg-group">
+      <span class="cfg-label">Action clic</span>
+      <select id="sel-click">
+        <option value="click">Clic gauche</option>
+        <option value="dblclick">Double-clic</option>
+        <option value="contextmenu">Clic droit</option>
+      </select>
+    </div>
+    <div class="separator"></div>
+    <button class="btn primary"      id="btn-start">▶ Lancer</button>
+    <button class="btn btn-solution" id="btn-peek">👁 Voir solution</button>
+    <button class="btn danger"       id="btn-quit">✕ Quitter</button>
+  </div>
+
+  <!-- VALIDATION -->
+  <div id="val-msg"></div>
+
+  <!-- STATS BAR -->
+  <div id="statsbar">
+    <div class="stat-block">
+      <span class="stat-label">Temps</span>
+      <span class="stat-value c-accent" id="st-time">00:00</span>
+    </div>
+    <div class="stat-block">
+      <span class="stat-label">Coups joués</span>
+      <span class="stat-value c-yellow" id="st-moves">0</span>
+    </div>
+    <div class="stat-block">
+      <span class="stat-label">Paires trouvées</span>
+      <span class="stat-value c-green" id="st-pairs-full">0 / 0</span>
+    </div>
+    <div class="stat-block">
+      <span class="stat-label">Solutions vues</span>
+      <span class="stat-value c-purple" id="st-peek-bar">0</span>
+    </div>
+  </div>
+
+  <!-- AIDE (masquable) -->
+  <div id="aide-bar">
+    <span class="aide-item">🎮 <strong>Comment jouer :</strong></span>
+    <span class="aide-item">① Choisissez la grille, le thème et l'action de retournement</span>
+    <span class="aide-item">② Cliquez <strong>Lancer</strong> pour démarrer</span>
+    <span class="aide-item">③ Retournez deux cartes — si identiques, elles restent visibles</span>
+    <span class="aide-item">④ Une carte sans second choix se cache après le délai réglé</span>
+    <span class="aide-item"><kbd class="aide-kbd">👁 Voir solution</kbd> révèle toutes les cartes pendant 5 s (compte les vues)</span>
+    <button id="btn-aide-close">✕</button>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+
+    <!-- PANNEAU LATÉRAL (blanc) -->
+    <div id="sidepanel">
+      <div>
+        <div class="side-section-title">Progression</div>
+        <div id="progress-wrap" style="margin-top:10px;">
+          <div class="progress-bar-label">
+            <span class="prog-pct" id="ring-pct">0%</span>
+            <span class="pairs-text"><span id="sp-found">0</span> / <span id="sp-total">0</span> paires</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="ring-fill"></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="side-section-title">Paires trouvées</div>
+        <div id="found-list" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- GRILLE (fond blanc cassé) -->
+    <div id="grid-area">
+      <div id="grid"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- OVERLAY VICTOIRE -->
+<div id="overlay">
+  <div class="overlay-card">
+    <h2>🎉 Félicitations !</h2>
+    <div class="overlay-stats">
+      <div class="ov-stat">
+        <span class="ov-stat-val" id="ov-time">—</span>
+        <span class="ov-stat-lbl">Temps</span>
+      </div>
+      <div class="ov-stat">
+        <span class="ov-stat-val" id="ov-moves">—</span>
+        <span class="ov-stat-lbl">Coups</span>
+      </div>
+      <div class="ov-stat">
+        <span class="ov-stat-val" id="ov-peeks">—</span>
+        <span class="ov-stat-lbl">Solutions vues</span>
+      </div>
+    </div>
+    <!-- Grille résolue cachée par défaut -->
+    <div id="solved-grid-wrap">
+      <div id="solved-grid-title">Grille résolue</div>
+      <div id="solved-grid"></div>
+    </div>
+    <div class="overlay-buttons">
+      <button class="btn btn-solution" id="btn-show-solved">🗺 Voir la grille résolue</button>
+      <button class="btn primary" id="btn-replay" style="height:40px;padding:0 24px;">🔄 Rejouer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const THEMES = {
+  cards: [
+    { display:'<div class="card-label"><div class="card-num">A</div><div class="card-sym">♠</div></div>',  id:'As'  },
+    { display:'<div class="card-label"><div class="card-num">K</div><div class="card-sym">♥</div></div>',  id:'Kh'  },
+    { display:'<div class="card-label"><div class="card-num">Q</div><div class="card-sym">♦</div></div>',  id:'Qd'  },
+    { display:'<div class="card-label"><div class="card-num">J</div><div class="card-sym">♣</div></div>',  id:'Jc'  },
+    { display:'<div class="card-label"><div class="card-num">10</div><div class="card-sym">♠</div></div>', id:'10s' },
+    { display:'<div class="card-label"><div class="card-num">9</div><div class="card-sym">♥</div></div>',  id:'9h'  },
+    { display:'<div class="card-label"><div class="card-num">8</div><div class="card-sym">♦</div></div>',  id:'8d'  },
+    { display:'<div class="card-label"><div class="card-num">7</div><div class="card-sym">♣</div></div>',  id:'7c'  },
+    { display:'<div class="card-label"><div class="card-num">6</div><div class="card-sym">♠</div></div>',  id:'6s'  },
+    { display:'<div class="card-label"><div class="card-num">5</div><div class="card-sym">♥</div></div>',  id:'5h'  },
+    { display:'<div class="card-label"><div class="card-num">4</div><div class="card-sym">♦</div></div>',  id:'4d'  },
+    { display:'<div class="card-label"><div class="card-num">3</div><div class="card-sym">♣</div></div>',  id:'3c'  },
+    { display:'<div class="card-label"><div class="card-num">2</div><div class="card-sym">♠</div></div>',  id:'2s'  },
+    { display:'<div class="card-label"><div class="card-num">A</div><div class="card-sym">♥</div></div>',  id:'Ah'  },
+    { display:'<div class="card-label"><div class="card-num">K</div><div class="card-sym">♦</div></div>',  id:'Kd'  },
+    { display:'<div class="card-label"><div class="card-num">Q</div><div class="card-sym">♣</div></div>',  id:'Qc'  },
+    { display:'<div class="card-label"><div class="card-num">J</div><div class="card-sym">♠</div></div>',  id:'Js'  },
+    { display:'<div class="card-label"><div class="card-num">10</div><div class="card-sym">♥</div></div>', id:'10h' },
+    { display:'<div class="card-label"><div class="card-num">9</div><div class="card-sym">♦</div></div>',  id:'9d'  },
+    { display:'<div class="card-label"><div class="card-num">8</div><div class="card-sym">♣</div></div>',  id:'8c'  },
+    { display:'<div class="card-label"><div class="card-num">7</div><div class="card-sym">♠</div></div>',  id:'7s'  },
+    { display:'<div class="card-label"><div class="card-num">6</div><div class="card-sym">♥</div></div>',  id:'6h'  },
+    { display:'<div class="card-label"><div class="card-num">5</div><div class="card-sym">♦</div></div>',  id:'5d'  },
+    { display:'<div class="card-label"><div class="card-num">4</div><div class="card-sym">♣</div></div>',  id:'4c'  },
+    { display:'<div class="card-label"><div class="card-num">3</div><div class="card-sym">♥</div></div>',  id:'3h'  },
+  ],
+  animals:['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐸','🐵','🐔','🐧','🐦','🦆','🦅','🦉','🦇','🐺','🐗','🦝','🦨','🦡'],
+  food:   ['🍎','🍌','🍇','🍓','🍒','🍑','🥝','🍍','🥭','🍋','🍊','🍉','🍈','🍏','🍐','🫐','🍅','🥥','🌽','🥕','🧅','🥦','🫑','🍄','🥑'],
+  letters:'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
+  smileys:['😀','😂','🤩','😎','🥳','😍','🤔','😴','🥺','😡','🤯','🥸','😇','🤠','🥶','😱','🤗','🫠','😤','🥴','😜','🤪','😏','😒','🙃'],
+};
+
+function getThemeItems(n){
+  if(n==='mix') return [...THEMES.animals.slice(0,5),...THEMES.food.slice(0,5),...THEMES.smileys.slice(0,5),...THEMES.letters.slice(0,5),...THEMES.cards.slice(0,5)];
+  return THEMES[n]||THEMES.animals;
+}
+function itemToCard(item){
+  if(typeof item==='object'&&item.display) return {id:item.id,html:item.display};
+  return {id:item,html:item};
+}
+
+let state={cards:[],firstCard:null,waiting:false,tvTimeout:null,timerInterval:null,elapsed:0,moves:0,pairsFound:0,totalPairs:0,tvSec:3,clickMode:'click',peekCount:0,peekTimeout:null,isPeeking:false,started:false};
+
+const $=id=>document.getElementById(id);
+const grid=$('grid'),foundList=$('found-list'),overlay=$('overlay'),valMsg=$('val-msg');
+const stTime=$('st-time'),stMoves=$('st-moves'),stPairsFull=$('st-pairs-full'),stPeekBar=$('st-peek-bar');
+const spFound=$('sp-found'),spTotal=$('sp-total');
+const ringFill=$('ring-fill'),ringPct=$('ring-pct'),btnPeek=$('btn-peek'),tvVal=$('tv-val'),slTv=$('sl-tv');
+const peekCountEl={textContent:'0'}; // dummy - élément supprimé du panneau latéral
+
+document.addEventListener('contextmenu',e=>e.preventDefault());
+
+$('btn-aide-close').addEventListener('click',()=>{ $('aide-bar').style.display='none'; });
+slTv.addEventListener('input',()=>{ tvVal.textContent=slTv.value+'s'; state.tvSec=+slTv.value; });
+$('btn-start').addEventListener('click',startGame);
+$('btn-quit').addEventListener('click',quitGame);
+$('btn-replay').addEventListener('click',()=>{ $('solved-grid-wrap').classList.remove('visible'); overlay.classList.remove('show'); startGame(); });
+btnPeek.addEventListener('click',peekSolution);
+
+$('btn-show-solved').addEventListener('click',()=>{
+  const wrap=$('solved-grid-wrap');
+  if(wrap.classList.contains('visible')){ wrap.classList.remove('visible'); $('btn-show-solved').textContent='🗺 Voir la grille résolue'; }
+  else { buildSolvedGrid(); wrap.classList.add('visible'); $('btn-show-solved').textContent='🙈 Masquer la grille'; }
+});
+
+function buildSolvedGrid(){
+  const sg=$('solved-grid'); sg.innerHTML='';
+  const rows=parseInt($('inp-rows').value), cols=parseInt($('inp-cols').value);
+  sg.style.gridTemplateRows=`repeat(${rows},34px)`;
+  sg.style.gridTemplateColumns=`repeat(${cols},34px)`;
+  state.cards.forEach(card=>{
+    const div=document.createElement('div');
+    div.className='s-card'; div.innerHTML=card.html; sg.appendChild(div);
+  });
+}
+
+function updateProgress(found,total){
+  spFound.textContent=found; spTotal.textContent=total;
+  stPairsFull.textContent=`${found} / ${total}`;
+  const pct=total>0?Math.round(found/total*100):0;
+  ringPct.textContent=pct+'%';
+  ringFill.style.width=pct+'%';
+}
+
+function startGame(){
+  const rows=parseInt($('inp-rows').value), cols=parseInt($('inp-cols').value), total=rows*cols;
+  valMsg.textContent=''; valMsg.classList.remove('visible');
+  if(isNaN(rows)||isNaN(cols)||rows<2||cols<2){ valMsg.textContent='⚠ Dimensions invalides (min 2×2).'; valMsg.classList.add('visible'); return; }
+  if(total%2!==0){ valMsg.textContent=`⚠ Lignes × Colonnes impair (${total} cases). Choisissez une combinaison paire.`; valMsg.classList.add('visible'); return; }
+  if(total>50){ valMsg.textContent=`⚠ Maximum 50 cases (actuellement ${total}).`; valMsg.classList.add('visible'); return; }
+  clearTimers();
+  state={...state,cards:[],firstCard:null,waiting:false,tvTimeout:null,timerInterval:null,elapsed:0,moves:0,pairsFound:0,peekCount:0,isPeeking:false,started:true,totalPairs:total/2,tvSec:+slTv.value,clickMode:$('sel-click').value};
+  stMoves.textContent='0'; stTime.textContent='00:00'; stPeekBar.textContent='0'; peekCountEl.textContent='0';
+  foundList.innerHTML=''; btnPeek.classList.remove('active');
+  updateProgress(0,state.totalPairs);
+  const pool=getThemeItems($('sel-theme').value).map(itemToCard);
+  const selected=shuffle(pool.slice()).slice(0,state.totalPairs);
+  state.cards=shuffle([...selected,...selected]).map((item,i)=>({...item,index:i,found:false,flipped:false,el:null}));
+  renderGrid(rows,cols); startTimer();
+}
+
+function renderGrid(rows,cols){
+  grid.innerHTML='';
+  grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
+  grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+  const area=$('grid-area');
+  const aw=area.clientWidth-32-(cols-1)*8, ah=area.clientHeight-32-(rows-1)*8;
+  const size=Math.max(40,Math.min(Math.floor(aw/cols),Math.floor(ah/rows),110));
+  grid.style.width=(size*cols+(cols-1)*8)+'px';
+  grid.style.height=(size*rows+(rows-1)*8)+'px';
+  const fs=Math.max(12,Math.min(size*0.38,36));
+  state.cards.forEach((card,i)=>{
+    const el=document.createElement('div');
+    el.className='card';
+    el.style.cssText=`width:${size}px;height:${size}px;font-size:${fs}px`;
+    el.innerHTML=`<div class="card-inner"><div class="card-face card-back-face"><span class="q">❓</span></div><div class="card-face card-front-face">${card.html}</div></div><div class="timer-bar" style="width:0"></div>`;
+    grid.appendChild(el);
+    state.cards[i].el=el;
+    attachCardListener(el,i);
+  });
+}
+
+function attachCardListener(el,index){
+  const mode=state.clickMode;
+  if(mode==='click'){
+    let isDbl=false;
+    const ch=e=>{ e.preventDefault(); if(isDbl){isDbl=false;return;} handleCardClick(index); };
+    const db=e=>{ e.preventDefault(); e.stopImmediatePropagation(); isDbl=true; };
+    el.addEventListener('click',ch); el.addEventListener('dblclick',db);
+    el._memHandler={mode:'click',handler:ch}; el._dblBlocker=db;
+  } else {
+    const h=e=>{ e.preventDefault(); handleCardClick(index); };
+    el.addEventListener(mode,h); el._memHandler={mode,handler:h};
+  }
+}
+function removeCardListener(el){
+  if(el._memHandler){ el.removeEventListener(el._memHandler.mode,el._memHandler.handler); el._memHandler=null; }
+  if(el._dblBlocker){ el.removeEventListener('dblclick',el._dblBlocker); el._dblBlocker=null; }
+}
+
+function handleCardClick(index){
+  if(!state.started||state.isPeeking) return;
+  const card=state.cards[index];
+  if(card.found||card.flipped||state.waiting) return;
+  flipCard(card,true); state.moves++; stMoves.textContent=state.moves;
+  if(!state.firstCard){
+    state.firstCard=card; startTvTimer(card);
+  } else {
+    const first=state.firstCard; state.firstCard=null; state.waiting=true; clearTvTimer(first);
+    if(first.id===card.id){
+      setTimeout(()=>{
+        first.found=card.found=true;
+        first.el.classList.add('found'); card.el.classList.add('found');
+        removeCardListener(first.el); removeCardListener(card.el);
+        state.pairsFound++; updateProgress(state.pairsFound,state.totalPairs);
+        addFoundIcon(card.html,card.id); state.waiting=false; checkVictory();
+      },300);
+    } else {
+      setTimeout(()=>{ flipCard(first,false); flipCard(card,false); state.waiting=false; },Math.max(500,(state.tvSec-1)*1000));
+    }
+  }
+}
+
+function flipCard(card,show){ card.flipped=show; card.el.classList.toggle('flipped',show); stopTimerBar(card.el); }
+
+function startTvTimer(card){
+  const bar=card.el.querySelector('.timer-bar'); if(!bar) return;
+  bar.style.transition='none'; bar.style.width='100%'; bar.getBoundingClientRect();
+  bar.style.transition=`width ${state.tvSec}s linear`; bar.style.width='0%';
+  state.tvTimeout=setTimeout(()=>{ if(card.flipped&&!card.found){ flipCard(card,false); state.firstCard=null; } },state.tvSec*1000);
+}
+function clearTvTimer(card){ clearTimeout(state.tvTimeout); state.tvTimeout=null; stopTimerBar(card.el); }
+function stopTimerBar(el){ const b=el.querySelector('.timer-bar'); if(b){b.style.transition='none';b.style.width='0';} }
+
+function addFoundIcon(html,id){
+  if($('fi-'+id)) return;
+  const d=document.createElement('div'); d.className='found-icon'; d.id='fi-'+id; d.innerHTML=html; foundList.appendChild(d);
+}
+
+function peekSolution(){
+  if(!state.started||state.isPeeking) return;
+  state.isPeeking=true; state.peekCount++;
+  peekCountEl.textContent=state.peekCount; stPeekBar.textContent=state.peekCount;
+  btnPeek.classList.add('active');
+  state.cards.forEach(c=>{ if(!c.found) c.el.classList.add('flipped','peeking'); });
+  clearTimeout(state.tvTimeout); clearTimeout(state.peekTimeout);
+  state.peekTimeout=setTimeout(()=>{
+    state.cards.forEach(c=>{
+      if(!c.found&&!c.flipped) c.el.classList.remove('flipped','peeking');
+      else if(!c.found&&c.flipped) c.el.classList.remove('peeking');
+    });
+    state.isPeeking=false; btnPeek.classList.remove('active');
+    if(state.firstCard) startTvTimer(state.firstCard);
+  },5000);
+}
+
+function checkVictory(){
+  if(state.pairsFound<state.totalPairs) return;
+  clearTimers(); state.started=false;
+  const m=String(Math.floor(state.elapsed/60)).padStart(2,'0'), s=String(state.elapsed%60).padStart(2,'0');
+  $('ov-time').textContent=`${m}:${s}`; $('ov-moves').textContent=state.moves; $('ov-peeks').textContent=state.peekCount;
+  $('solved-grid-wrap').classList.remove('visible'); $('btn-show-solved').textContent='🗺 Voir la grille résolue';
+  overlay.classList.add('show');
+}
+
+function quitGame(){
+  if(!state.started&&grid.children.length===0){ window.close(); return; }
+  clearTimers(); state.started=false; grid.innerHTML=''; foundList.innerHTML=''; state.cards=[]; state.firstCard=null;
+  stTime.textContent='00:00'; stMoves.textContent='0'; stPeekBar.textContent='0'; peekCountEl.textContent='0';
+  valMsg.textContent=''; valMsg.classList.remove('visible'); overlay.classList.remove('show'); btnPeek.classList.remove('active');
+  updateProgress(0,0);
+}
+
+function startTimer(){
+  state.elapsed=0; clearInterval(state.timerInterval);
+  state.timerInterval=setInterval(()=>{
+    state.elapsed++;
+    stTime.textContent=`${String(Math.floor(state.elapsed/60)).padStart(2,'0')}:${String(state.elapsed%60).padStart(2,'0')}`;
+  },1000);
+}
+function clearTimers(){ clearInterval(state.timerInterval); clearTimeout(state.tvTimeout); clearTimeout(state.peekTimeout); state.timerInterval=state.tvTimeout=state.peekTimeout=null; }
+
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+
+window.addEventListener('resize',()=>{
+  if(!state.started||!state.cards.length) return;
+  const rows=parseInt($('inp-rows').value), cols=parseInt($('inp-cols').value);
+  const old=state.cards.map(c=>({found:c.found,flipped:c.flipped}));
+  renderGrid(rows,cols);
+  state.cards.forEach((c,i)=>{
+    if(old[i].found){ c.found=true; c.el.classList.add('found','flipped'); removeCardListener(c.el); }
+    else if(old[i].flipped){ c.flipped=true; c.el.classList.add('flipped'); }
+  });
+});
+</script>
+</body>
+</html>
